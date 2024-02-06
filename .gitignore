@@ -1,0 +1,12 @@
+# package directories
+node_modules
+jspm_packages
+
+# Serverless directories
+.serverless
+webpack.config.js
+dist.zip
+dist
+lambda_code.zip
+newrelic_agent.log
+.env

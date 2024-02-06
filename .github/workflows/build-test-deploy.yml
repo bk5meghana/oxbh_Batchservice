@@ -1,0 +1,32 @@
+name: Zip and deploy the source code for Lambda to S3
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  deploy-dev:
+    if: github.event_name != 'pull_request'
+    name: Build and Deploy (Development)
+    runs-on: ubuntu-latest
+    concurrency: deploy-dev
+    environment:
+      name: dev
+    permissions:
+      id-token: write # required for aws credentials
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Publish Code (Development)
+        uses: ./.github/actions/invoke-lambda-cli
+        with:
+          environment_aws_account_id: '354085572241'
+          name_partial: comm-rules-engine-dev-validate-354085572241 # I need to "hardcode" this until we remove the duplicate lambda

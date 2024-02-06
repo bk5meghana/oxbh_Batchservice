@@ -1,0 +1,51 @@
+name: Zip and deploy the source code for Lambda to S3
+author: Loka Inc.
+description: invoke a lambda function triggered by a github action
+inputs:
+  environment_aws_account_id:
+    description: AWS Account ID of the environment ('354085572241')
+    required: true
+  name_partial:
+    description: Function Partial Name to Search By
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS Credentials
+      id: credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.environment_aws_account_id }}:role/github-actions
+        role-session-name: adapter-ci
+        aws-region: us-east-1
+        mask-aws-account-id: 'no'
+
+    - name: Determine Function Name
+      id: search
+      shell: bash
+      run: |
+        echo name=$(aws lambda list-functions --query "Functions[?contains(FunctionName, '${{ inputs.name_partial }}')].FunctionName" | grep ${{ inputs.name_partial }} | tr -d '" ') >> $GITHUB_OUTPUT
+
+    - name: Set up Node.js
+      id: node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        cache: 'npm'
+
+    - name: Install Dependencies
+      shell: bash
+      run: npm install --omit=dev
+
+    - name: Zip Code
+      shell: bash
+      run: npm run zip && mv dist.zip lambda_code.zip
+
+    - name: Upload Zip to S3
+      shell: bash
+      run: aws s3 cp lambda_code.zip s3://lambda-code-s3-${{ inputs.environment_aws_account_id }}-us-east-1/oxbh-delivery-engine-lambda/lambda_code.zip
+
+    - name: Invoke Lambda Function
+      shell: bash
+      run: aws lambda update-function-code --function-name=${{ steps.search.outputs.name }} --zip-file=fileb://lambda_code.zip
